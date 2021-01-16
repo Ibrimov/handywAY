@@ -1,1 +1,1 @@
-"# handywAy" 
+Admin Panel | HandyWay

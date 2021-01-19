@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'main.apps.MainConfig',
 ]
 
-X_FRAME_OPTIONS='SAMEORIGIN'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -80,8 +79,12 @@ WSGI_APPLICATION = 'handyAdmin.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'handyway_database',
+        'USER': 'handyway_admin',
+        'PASSWORD': 'l(}7u0G6N.95',
+        'HOST': 'localhost',
+        'PORT': '3306'
     }
 }
 

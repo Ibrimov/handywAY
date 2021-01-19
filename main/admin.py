@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Goods, Shops, UserProfile
+from .models import Good, Shop, UserProfile, Category, District
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.forms import forms
 from django.utils.translation import gettext, gettext_lazy as _
@@ -30,6 +30,7 @@ class UserAdmin(admin.ModelAdmin):
     ordering = ['id']
     list_display = ["id", "get_full_name", "username", "get_password", "get_phone_number", "is_superuser"]
     list_display_links = ['id', 'get_full_name']
+
     def get_full_name(self, obj):
         user = UserProfile.objects.get(user=obj)
         patronymic = user.patronymic
@@ -61,39 +62,69 @@ class UserAdmin(admin.ModelAdmin):
             request, object_id, form_url, extra_context=extra_context,
         )
 
+class ShopAdmin(admin.ModelAdmin):
+    change_form_template = "admin/shop.html"
+    list_display = ('id', 'name', 'inn', 'phone_number', 'get_district', 'address', 'landmark', 'get_category', 'added_by')
+    ordering = ['id']
+    list_display_links = ['id', 'name']
+    search_fields = ['id', 'name', 'inn', 'phone_number', 'get_district', 'address', 'landmark']
 
-class ShopsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'inn', 'phone_number', 'district', 'address', 'landmark', 'get_type')
-    search_fields = ['id', 'name', 'inn', 'phone_number', 'district', 'address', 'landmark']
+    def added_by(self, obj):
+        shop = Shop.objects.get(id=obj.id)
+        return shop.person.get_full_name()
+    added_by.short_description = "Добавил"
+
+    def get_category(self, obj):
+        category = Category.objects.get(id=obj.category)
+        return category
+    get_category.short_description = "Тип"
+
+    def get_district(self, obj):
+        district = District.objects.get(id=obj.district)
+        return district
+    get_district.short_description = "Район"
+
+    def get_dynamic_info(self):
+        # ...
+        pass
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['osm_data'] = self.get_dynamic_info()
+
+        return super(ShopAdmin, self).change_view(
+            request, object_id, form_url, extra_context=extra_context,
+        )
+
+
+class GoodAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'category', 'price_for_one', 'description', 'quantity')
+    ordering = ['id']
+    list_display_links = ['id', 'name']
+    search_fields = ['id', 'name', 'category']
     fieldsets = (
-        ("Важная информация", {
-            "fields": ("name", "inn", "phone_number")
+        ("Важные данные", {
+            "fields": ("name", "category")
         }),
-        ("Локация", {
-            "fields": ("address", "landmark")
+        ("Цена", {
+            "fields": ("price_for_one", "price_for_wholesaler")
+        }),
+        ("Детали", {
+            "fields": ("min_quantity_to_buy", "quantity")
         }), 
         ("Вид", {
-            "fields": ("type_of", "additional_type")
+            "fields": ("description", "photo")
         })
     )
-
-    def get_type(self, obj):
-        if obj.type_of == '' and obj.additional_type != '':
-            return obj.additional_type
-        elif obj.type_of != '':
-            return obj.type_of
-    get_type.short_description = "Тип"
-
-class GoodsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'category', 'price_for_one', 'description', 'quantity')
 
 
 # Unregister models
 admin.site.unregister(User)
 admin.site.unregister(Group)
 
-
 # Register your models here.
-admin.site.register(Shops, ShopsAdmin)
-admin.site.register(Goods, GoodsAdmin)
+admin.site.register(Shop, ShopAdmin)
+admin.site.register(Good, GoodAdmin)
 admin.site.register(User, UserAdmin)
+admin.site.register(District)
+admin.site.register(Category)

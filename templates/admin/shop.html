@@ -1,0 +1,264 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}{{ block.super }}
+<script src="{% url 'admin:jsi18n' %}"></script>
+{{ media }}
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="{% static 'css/userprofile_form.css' %}">
+
+{% endblock %}
+
+{% block coltype %}colM{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-form{% endblock %}
+
+{% if not is_popup %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+&rsaquo; {% if add %}{% blocktranslate with name=opts.verbose_name %}Add {{ name }}{% endblocktranslate %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
+{% endif %}
+
+{% block content %}<div id="content-main">
+{% block object-tools %}
+{% if change %}{% if not is_popup %}
+  <ul class="object-tools">
+    {% block object-tools-items %}
+      {% change_form_object_tools %}
+    {% endblock %}
+  </ul>
+{% endif %}{% endif %}
+{% endblock %}
+<form {% if has_file_field %}enctype="multipart/form-data" {% endif %}{% if form_url %}action="{{ form_url }}" {% endif %}method="post" id="{{ opts.model_name }}_form" novalidate>{% csrf_token %}{% block form_top %}{% endblock %}
+<div>
+{% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+{% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+{% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
+
+{% block field_sets %}
+<form action="/main/create_shop/">
+    <p class="error alert alert-danger" style="display: none;"></p>
+    <div class="form-group">
+        <label for="name">Название:</label>
+        <input type="text" class="form-control" name="name" id="name" required data-id="{{ object_id }}" maxlength="255">
+    </div>
+    <div class="form-group">
+        <label for="inn">ИНН:</label>
+        <input type="text" class="form-control" name="inn" id="inn" required maxlength="20">
+    </div>
+    <div class="form-group">
+        <label for="phone_number">Номер телефона:</label>
+        <input type="text" class="form-control" name="phone_number" id="phone_number" placeholder="+998974162910" required maxlength="13">
+    </div>
+    <div class="form-group">
+        <label for="district">Район:</label>
+        <select name="district" id="district" class="form-control" required></select>
+    </div>
+    <div class="form-group">
+        <label for="address">Адресс:</label>
+        <input type="text" name="address" id="address" class="form-control" required max="255">
+    </div>
+    <div class="form-group">
+        <label for="landmark">Ориентир:</label>
+        <input type="text" name="landmark" id="landmark" class="form-control" required maxlength="255">
+    </div>
+    <div class="form-group">
+        <label for="category">Категория:</label>
+        <select name="category" id="category" class="form-control" required></select>
+    </div>
+    <div class="buttons" style="margin-top: 30px;">
+        <button class="btn" type="button" onclick="submitForm()" style="background-color:#00ef7d;color:white;">Сохранить</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block after_field_sets %}{% endblock %}
+
+{% block inline_field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+{% endblock %}
+
+{% block after_related_objects %}{% endblock %}
+
+</div>
+</form></div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+<script>
+const nameInput = document.querySelector("#name");
+const innInput = document.querySelector("#inn");
+const phoneInput = document.querySelector("#phone_number");
+const addressInput = document.querySelector("#address");
+const categorySelect = document.querySelector("#category");
+const districtSelect = document.querySelector("#district");
+const landmarkInput = document.querySelector("#landmark");
+const buttons = document.querySelector(".buttons");
+const error = document.querySelector(".error");
+
+let object_id = nameInput.getAttribute("data-id");
+let csrftoken = $('[name="csrfmiddlewaretoken"]').val();
+
+let districtPath = "/main/get_districts/";
+get_important_data(districtPath, districtSelect);
+
+let categoryPath = "/main/get_categories/";
+get_important_data(categoryPath, categorySelect);
+
+if (window.location.href.includes('change')) {
+    get_data();
+    let shop = window.localStorage.getItem('shop');
+    shop = shop.split(',');
+    nameInput.value = shop[0];
+    innInput.value = shop[1];
+    phoneInput.value = shop[2];
+    districtSelect.value = shop[3];
+    addressInput.value = shop[4];
+    landmarkInput.value = shop[5];
+    categorySelect.value = shop[6];
+
+    let deleteButton = document.createElement("button");
+    deleteButton.classList.add("btn");
+    deleteButton.classList.add("btn-danger");
+    deleteButton.textContent = "Удалить";
+    deleteButton.type = "button";
+
+    deleteButton.onclick = function() {
+        let deletePath = "/main/" + object_id + "/delete_shop";
+
+        fetch(deletePath, {
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+            },
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            let status = data["status"];
+            let message = data["message"];
+
+            if (status == "SUCCESS") {
+            window.localStorage.removeItem("flash_message");
+            window.localStorage.setItem("flash_message", message);
+            window.location.replace("/main/shop");
+            } else {
+            console.log(message);
+            }
+        })
+    }
+
+    buttons.appendChild(deleteButton);
+} 
+
+function submitForm() {
+    let submitPath = "";
+    if (window.location.href.includes("change")) {
+        submitPath = "/main/" + object_id + "/change_shop/";
+    } else if (window.location.href.includes("add")) {
+        submitPath = "/main/add_shop/";
+    }
+    if (nameInput.value.length == 0 || innInput.value.length == 0 || phoneInput.value.length == 0 || addressInput.value.length == 0 || landmarkInput.value.length == 0) {
+        error.style.display = "block";
+        error.textContent = "Заполните все поля";
+    } else {
+        error.textContent = "";
+        error.style.display = "none";
+        
+        let data = {
+            "name": nameInput.value.trim(),
+            "inn": innInput.value.trim(),
+            "phone_number": phoneInput.value.trim(),
+            "district": districtSelect.value,
+            "address": addressInput.value,
+            "landmark": landmarkInput.value,
+            "category": categorySelect.value,
+        }
+
+        fetch(submitPath, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(data),
+        })
+        .then(response => response.json())
+        .then(data => {
+            let status = data["status"];
+            let message = data["message"];
+
+            if (status == "SUCCESS") {
+                window.location.replace("/main/shop");
+                window.localStorage.setItem("flash_message", message);
+            } else {
+                error.style.display = "block";
+                error.textContent = message;
+            }
+        })
+        }
+}
+
+function get_important_data(path, obj) {
+    fetch(path, {
+        headers:{
+            'Accept': 'application/json',
+            'X-CSRFToken': csrftoken //Necessary to work with request.is_ajax()
+        },
+    })
+    .then(response => {
+        return response.json() //Convert response to JSON
+    })
+    .then(data => {
+        for(let i = 0; i < data.length; i++) {
+        let optionData = {
+            text: data[i][1],
+            value: data[i][0]
+        }
+        let option = document.createElement('option');
+        option.value = optionData["value"];
+        option.textContent = optionData["text"];
+        obj.appendChild(option);
+        }
+    })
+    .catch(error => {
+        console.log(error)
+    })
+}
+
+function get_data() {
+    const allDataPath = "/main/" + object_id +"/get_all_data_shop/";
+
+    fetch(allDataPath, {
+      headers:{
+            'Accept': 'application/json',
+            'X-CSRFToken': csrftoken //Necessary to work with request.is_ajax()
+        },
+    })
+    .then(response => {
+        return response.json(); //Convert response to JSON
+    })
+    .then(data => {
+        let result = []
+        for (let i in data) {
+            result.push(data[i])
+        }
+        window.localStorage.setItem("shop", result)
+    })
+    .catch(error => {
+      console.log(error);
+    })
+  }
+</script>
+{% endblock %}

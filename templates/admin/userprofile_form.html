@@ -54,7 +54,7 @@
     </div>
     <div class="form-group">
       <label for="username">Имя пользователя:</label>
-      <input type="text" name="username" id="username" maxlength="255" class="form-control" required>
+      <input type="text" name="username" id="username" maxlength="255" class="form-control" required data-user-id="{{ object_id }}"> 
     </div>
     <div class="form-group">
       <label for="first_name">Имя:</label>
@@ -91,13 +91,6 @@
       </small>
     </div>
     <div class="form-group">
-      <label for="custom_district">Другой Район:</label>
-      <input type="text" name="custom_district" id="custom_district" class="form-control" aria-describedby="customDistrictHelp" required>
-      <small id="customDistrictHelp" class="form-text text-muted">
-        Оставьте пустым, если выбрали все районы из верхнего списка
-      </small>
-    </div>
-    <div class="form-group">
       <label for="group">Группа:</label>
       <select name="group" id="group" class="form-control" required>
         <option value="0">Диспетчеры</option>
@@ -109,7 +102,7 @@
       <label for="active" class="form-check-label">Активен:</label>
     </div>
     <div class="buttons" style="margin-top: 30px;">
-      <button class="btn btn-primary" type="button" onclick="submitForm()">Сохранить</button>
+      <button class="btn" type="button" onclick="submitForm()" style="background-color:#00ef7d;color:white;">Сохранить</button>
     </div>
     <p class="alert alert-danger warn-error" style="display: none;">Ошибка! Информация об ошибке выше</p>
   </div>
@@ -149,16 +142,16 @@
   const patronymicField = document.querySelector("#patronymic");
   const phoneNumberField = document.querySelector("#phone_number");
   const groupField = document.querySelector('#group');
-  const customDistrictField = document.querySelector('#custom_district');
   const activeField = document.querySelector('#active');
   const emailField = document.querySelector('#email');
   const error = document.querySelector(".error");
   const buttons = document.querySelector(".buttons");
   const warnError = document.querySelector(".warn-error");
-
+  
+  let object_id = usernameField.getAttribute("data-user-id");
   let csrftoken = $('[name="csrfmiddlewaretoken"]').val();
 
-  const path = "/main/get_districts/";
+  let path = "/main/get_districts/";
   fetch(path, {
       headers:{
           'Accept': 'application/json',
@@ -192,24 +185,55 @@
     emailField.value = window.localStorage.getItem("email");
     activeField.checked = window.localStorage.getItem("active");
     groupField.selectedIndex = parseInt(window.localStorage.getItem('group')) - 1;
-    
-    // window.localStorage.setItem("group", data["group"]);
-    // window.localStorage.setItem("active", data["active"]);
+
+    let deleteButton = document.createElement("button");
+    deleteButton.classList.add("btn");
+    deleteButton.classList.add("btn-danger");
+    deleteButton.textContent = "Удалить";
+    deleteButton.type = "button";
+    deleteButton.onclick = function() {
+      let deletePath = "/main/" + object_id + "/delete_user";
+
+      fetch(deletePath, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        method: 'DELETE',
+      })
+      .then(response => response.json())
+      .then(data => {
+        let status = data["status"];
+        let message = data["message"];
+
+        if (status == "SUCCESS") {
+          window.localStorage.removeItem("flash_message");
+          window.localStorage.setItem("flash_message", message);
+          window.location.replace("/auth/user");
+        } else {
+          console.log(message);
+        }
+      })
+    }
+
+    buttons.appendChild(deleteButton);
+
   } else if (window.location.href.includes("add")) {
   }
 
   function submitForm() {
     let submitPath = "";
     if (window.location.href.includes("change")) {
-      let user_id = window.location.href.strip("/")[5];
-      submitPath = "/main/" + user_id + "/change_user/";
+      submitPath = "/main/" + object_id + "/change_user/";
     }
     else if (window.location.href.includes("add")) {
       submitPath = "/main/submit_user/";
     }
     let selectedValues = Array.from(selectInput.selectedOptions).map(option => option.value);
 
-    if (usernameField.value.length == 0 || firstNameField.value.length == 0 || lastNameField.value.length == 0 || patronymicField.value.length == 0 || phoneNumberField.value.length == 0 || ((selectedValues.length == 0) && (customDistrictField.value.length == 0)) || groupField.value.length == 0 || emailField.value.length == 0) {
+    if (usernameField.value.length == 0 || firstNameField.value.length == 0 || lastNameField.value.length == 0 || 
+        patronymicField.value.length == 0 || phoneNumberField.value.length == 0 || (groupField.value == '2' && selectedValues.length == 0) || 
+        groupField.value.length == 0 || emailField.value.length == 0) {
       error.style.display = "block";
       warnError.style.display = "block";
       error.textContent = "Заполните все поля";
@@ -217,7 +241,6 @@
       warnError.style.display = "none";
       error.textContent = "";
       error.style.display = "none";
-      
       let data = {
         "username": usernameField.value.trim(),
         "first_name": firstNameField.value.trim(),
@@ -226,7 +249,6 @@
         "email": emailField.value.trim(),
         "phone_number": phoneNumberField.value.trim(),
         "districts": selectedValues,
-        "custom_districts": customDistrictField.value.trim(),
         "group": groupField.value,
         "active": activeField.checked
       }
@@ -257,8 +279,7 @@
   }
 
   function get_data() {
-    const userId = window.location.href.split("/")[5];
-    const allDataPath = "/main/" + userId +"/get_all_data/";
+    const allDataPath = "/main/" + object_id +"/get_all_data_user/";
 
     fetch(allDataPath, {
       headers:{

@@ -1,11 +1,8 @@
 from django.db import models
-from phonenumber_field.modelfields import PhoneNumberField
-from django_google_maps import fields as map_fields
 from django.contrib.auth.models import User
 
 # Create your models here.
 DISTRICTS = [
-    ('', ''),
     ('Алтыарыкский район', 'Алтыарыкский район'),
     ('Багдадский район', 'Багдадский район'),
     ('Бешарыкский район', 'Бешарыкский район'),
@@ -24,7 +21,6 @@ DISTRICTS = [
 ]
 
 DEFAULT_TYPES_OF_SHOPS = [
-    ('', ''),
     ('Cупермаркет', 'Супермаркет'),
     ('Гипермаркет', 'Гипермаркет'),
     ('Хозяйственный магазин', 'Хозяйственный магазин'),
@@ -45,8 +41,9 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
 
     patronymic = models.CharField(max_length=255, blank=False, verbose_name="Отчество")
-    phone_number = PhoneNumberField(null=False, blank=False, unique=True, verbose_name='Номер телефона')
-    district = models.CharField(max_length=100, blank=False, choices=DISTRICTS, verbose_name='Район', default='')
+    phone_number = models.CharField(max_length=15, null=False, blank=False, unique=True, verbose_name='Номер телефона')
+    districts = models.JSONField(verbose_name="Районы")
+    password = models.CharField(max_length=50, verbose_name="Пароль", blank=False)
 
     def __str__(self):
         return f"{self.user.last_name} {self.user.first_name} {self.patronymic}"
@@ -58,11 +55,10 @@ class UserProfile(models.Model):
 class Shops(models.Model):
     name = models.CharField(max_length=255, verbose_name='Название')
     inn = models.IntegerField(verbose_name='ИНН')
-    phone_number = PhoneNumberField(null=False, blank=False, unique=True, verbose_name='Номер телефона')
+    phone_number = models.CharField(max_length=15, null=False, blank=False, unique=True, verbose_name='Номер телефона')
     district = models.CharField(max_length=100, blank=False, choices=DISTRICTS, verbose_name='Район', default='')
-    address = map_fields.AddressField(max_length=255, verbose_name="Адресс")
+    address = models.CharField(max_length=255, verbose_name="Адресс")
     landmark = models.CharField(max_length=255, verbose_name='Ориентир')
-    geolocation = map_fields.GeoLocationField(max_length=255, verbose_name="Геолокация")
     type_of = models.CharField(max_length=100, blank=False, choices=DEFAULT_TYPES_OF_SHOPS, verbose_name='Тип', default='')
     additional_type = models.CharField(max_length=50, blank=True, verbose_name='Другой тип (можете оставить пустым)')
 
@@ -90,3 +86,11 @@ class Goods(models.Model):
     class Meta:
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
+
+
+class District(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Район")
+
+    @classmethod
+    def get_all_districts(cls):
+        return cls.objects.values_list('id', 'name')

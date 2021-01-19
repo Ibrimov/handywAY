@@ -3,8 +3,6 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Goods, Shops, UserProfile
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.forms import forms
-from django_google_maps import widgets as map_widgets
-from django_google_maps import fields as map_fields
 from django.utils.translation import gettext, gettext_lazy as _
 
 # Changing the frontend of admin panel
@@ -27,36 +25,41 @@ class UserProfileForm(forms.ModelForm):
 
 
 # Configurations for frontend of models in admin panel
-class UserProfileInline(admin.StackedInline):
-    model = UserProfile
-    can_delete = False
-    form = UserProfileForm
-    verbose_name_plural = 'Необходимые данные'
-    
-
-class UserAdmin(BaseUserAdmin):
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        (_('Personal info'), {'fields': ('first_name', 'last_name', 'email')}),
-        (_('Permissions'), {
-            'fields': ('is_active', 'groups'),
-        }),
-        (_('Important dates'), {'fields': ('date_joined',)}),
-    )
-    inlines = (UserProfileInline,)
+class UserAdmin(admin.ModelAdmin):
+    change_form_template = "admin/userprofile_form.html"
     ordering = ['id']
-
+    list_display = ["id", "get_full_name", "username", "get_password", "get_phone_number", "is_superuser"]
+    list_display_links = ['id', 'get_full_name']
     def get_full_name(self, obj):
         user = UserProfile.objects.get(user=obj)
         patronymic = user.patronymic
         return "%s %s %s" % (obj.last_name, obj.first_name, patronymic)
+    
+    def get_password(self, obj):
+        user = UserProfile.objects.get(user=obj)
+        password = user.password
+        return password
+    get_password.short_description = "Пароль"
+    
+    def get_phone_number(self, obj):
+        user = UserProfile.objects.get(user=obj)
+        phone_number = user.phone_number
+        return phone_number
+    get_phone_number.short_description = "Номер"
 
     get_full_name.short_description = "Полное имя"
 
-    def get_inline_instances(self, request, obj=None):
-        if not obj:
-            return list()
-        return super(UserAdmin, self).get_inline_instances(request, obj)
+    def get_dynamic_info(self):
+        # ...
+        pass
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['osm_data'] = self.get_dynamic_info()
+
+        return super(UserAdmin, self).change_view(
+            request, object_id, form_url, extra_context=extra_context,
+        )
 
 
 class ShopsAdmin(admin.ModelAdmin):
@@ -67,16 +70,12 @@ class ShopsAdmin(admin.ModelAdmin):
             "fields": ("name", "inn", "phone_number")
         }),
         ("Локация", {
-            "fields": ("address", "geolocation", "landmark")
+            "fields": ("address", "landmark")
         }), 
         ("Вид", {
             "fields": ("type_of", "additional_type")
         })
     )
-    
-    formfield_overrides = {
-        map_fields.AddressField: {'widget': map_widgets.GoogleMapsAddressWidget},
-    }
 
     def get_type(self, obj):
         if obj.type_of == '' and obj.additional_type != '':

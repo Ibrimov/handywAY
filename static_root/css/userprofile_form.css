@@ -1,0 +1,16 @@
+input {
+    width: 200px;
+    height: 25px;
+}
+
+span.select2 {
+    width: 200px;
+}
+
+.submit-row a.deletelink {
+    height: 30px;
+}
+
+.disable {
+    display: none;
+}
